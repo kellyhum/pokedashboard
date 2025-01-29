@@ -8,19 +8,95 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogFooter,
+    DialogClose,
+} from "@/components/ui/dialog";
+import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { User, Search } from "lucide-react";
 import { useEffect, useState } from "react";
+import "../types";
+import { CardInterface } from "../types";
 
 export default function Home() {
     const [cardImg, setCardImg] = useState("");
+    const [queriedCards, setQueriedCards] = useState<CardInterface[]>([]);
+    const [userCards, setUserCards] = useState<CardInterface[]>([]);
+
+    useEffect(() => {
+        getCards();
+    }, []);
+
+    const getCards = async () => {
+        try {
+            let response = await fetch("http://127.0.0.1:8000/getCard");
+
+            if (response.ok) {
+                let data = await response.json();
+                setUserCards(data.cards);
+            }
+        } catch (error) {}
+    };
+
+    const searchDB = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        try {
+            let response = await fetch("http://127.0.0.1:8000/search", {
+                method: "POST",
+                headers: {
+                    Accept: "application/json", // receiving items in json format
+                    "Content-Type": "application/json", // sending items in json format
+                },
+                body: JSON.stringify({
+                    query: event.currentTarget.value,
+                }),
+            });
+
+            if (response.ok) {
+                let data = await response.json();
+                console.log(data.cards);
+                setQueriedCards(data.cards);
+            } else {
+                throw new Error();
+            }
+        } catch (error) {
+            setQueriedCards([]);
+        }
+    };
+
+    const addCardToDB = async (card: CardInterface) => {
+        try {
+            console.log(card);
+            let response = await fetch("http://127.0.0.1:8000/add", {
+                method: "POST",
+                headers: {
+                    Accept: "application/json", // receiving items in json format
+                    "Content-Type": "application/json", // sending items in json format
+                },
+                body: JSON.stringify({
+                    cardValue: card,
+                }),
+            });
+
+            if (response.ok) {
+                let data = response.json();
+                console.log(data);
+            }
+        } catch (error) {}
+    };
 
     const getCardImg = async () => {
         try {
@@ -41,9 +117,7 @@ export default function Home() {
                     <Tooltip>
                         <TooltipTrigger>
                             <h1 className="font-bold text-xl mb-0">
-                                the{" "}
-                                <span className="text-[#8b85cb]">pokemon</span>{" "}
-                                dashboard
+                                <span className="text-[#8B85CB]">poké</span>dash
                             </h1>
                         </TooltipTrigger>
                         <TooltipContent side="right">
@@ -55,20 +129,22 @@ export default function Home() {
                     </Tooltip>
                 </TooltipProvider>
 
-                <div className="flex gap-3">
+                <div className="flex gap-5 items-center">
+                    <div className="flex items-center gap-3">
+                        <span className="rounded-full w-3 h-3 bg-green-400"></span>
+
+                        <div>Guest Mode (currently active)</div>
+                    </div>
+
                     <Button>
                         <User /> Login
-                    </Button>
-
-                    <Button variant="outline">
-                        <Search /> Guest Mode
                     </Button>
                 </div>
             </div>
 
             <Separator />
 
-            <div className="bg-[#f7f6ff] h-dvh flex flex-1">
+            <div className="bg-[#fff] h-dvh flex flex-1">
                 <section className="flex-auto">
                     <h3>Your Cards</h3>
 
@@ -79,46 +155,137 @@ export default function Home() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All cards</SelectItem>
-                                <SelectItem value="eevee">Eevees</SelectItem>
                             </SelectContent>
                         </Select>
 
-                        <div className="flex gap-2">
-                            <Input
-                                className="w-[180px] bg-white"
-                                type="text"
-                                placeholder="Search..."
-                            />
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <Search /> Add cards
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-white">
+                                <DialogHeader>
+                                    <DialogTitle>Add New Card</DialogTitle>
+                                    <DialogDescription>
+                                        Search for Pokémon cards to add to your
+                                        collection.
+                                        <br></br>
+                                        Note: may take a while because of the
+                                        sheer amount of cards
+                                    </DialogDescription>
+                                </DialogHeader>
 
-                            <Button>
-                                <Search /> Search
-                            </Button>
-                        </div>
+                                <div>
+                                    <div className="flex gap-2 mb-4">
+                                        <Input
+                                            placeholder="Search cards..."
+                                            onChange={searchDB}
+                                        />
+                                    </div>
+
+                                    <ScrollArea className="h-[250px] border p-4 rounded-md">
+                                        <div className="grid grid-cols-2 place-items-center gap-1">
+                                            {queriedCards.length > 0 ? (
+                                                queriedCards.map((card) => (
+                                                    <div
+                                                        key={card.id}
+                                                        className="mb-5"
+                                                    >
+                                                        <img
+                                                            src={card.image}
+                                                            alt={card.id}
+                                                            className="mb-2"
+                                                        />
+                                                        <Button
+                                                            onClick={() =>
+                                                                addCardToDB(
+                                                                    card
+                                                                )
+                                                            }
+                                                        >
+                                                            Add to Collection
+                                                        </Button>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div>No cards searched</div>
+                                            )}
+                                        </div>
+                                    </ScrollArea>
+                                </div>
+
+                                <DialogFooter>
+                                    <DialogClose asChild>
+                                        <Button type="submit">Done</Button>
+                                    </DialogClose>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </div>
 
-                    <div>
-                        {cardImg && (
-                            <img src={cardImg} className="w-40 h-auto" />
+                    <ScrollArea className="h-[350px] border p-4 rounded-md">
+                        {userCards.length > 0 ? (
+                            userCards.map((card) => (
+                                <img
+                                    src={card.name} // FIX THIS!!!!! also delete the test cases from db
+                                    alt={card.id}
+                                    className="mb-2 h-30 w-20"
+                                />
+                            ))
+                        ) : (
+                            <div className="text-center">
+                                Add cards to see them appear here
+                            </div>
                         )}
-                    </div>
+                    </ScrollArea>
                 </section>
 
                 <Separator orientation="vertical" />
 
                 <div className="flex flex-col flex-auto">
-                    <section className="flex-auto">
-                        <h3>Wishlist</h3>
-                    </section>
+                    <div className="flex">
+                        <section className="flex-auto">
+                            <h3>Wishlist</h3>
+
+                            <ScrollArea className="h-[200px] border p-4 rounded-md">
+                                {cardImg ? (
+                                    <img
+                                        src={cardImg}
+                                        className="w-40 h-auto"
+                                    />
+                                ) : (
+                                    <div className="text-center">
+                                        Add cards to see them appear here
+                                    </div>
+                                )}
+                            </ScrollArea>
+                        </section>
+
+                        <Separator orientation="vertical" />
+
+                        <section className="flex-auto">
+                            <h3>Recommended</h3>
+                            <ScrollArea className="h-[200px] border p-4 rounded-md">
+                                {userCards.length > 0 ? (
+                                    <img
+                                        src={cardImg}
+                                        className="w-40 h-auto"
+                                    />
+                                ) : (
+                                    <div className="text-center">
+                                        No cards recommended!
+                                        <br></br>
+                                        Add cards to your collection to start
+                                    </div>
+                                )}
+                            </ScrollArea>
+                        </section>
+                    </div>
 
                     <Separator />
 
-                    <section className="flex-auto">
-                        <h3>Recommended</h3>
-                    </section>
-
-                    <Separator />
-
-                    <section className="flex-auto">
+                    <section className="">
                         <h3>Portfolio Value</h3>
                     </section>
                 </div>
