@@ -1,12 +1,5 @@
 "use client";
-
 import { Button } from "@/components/ui/button";
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
     Dialog,
     DialogContent,
@@ -27,16 +20,22 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { User, Search } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
+
 import { useEffect, useState } from "react";
+
+import Nav from "@/components/Nav";
+
 import "../types";
 import { CardInterface } from "../types";
 
 export default function Home() {
-    const [cardImg, setCardImg] = useState("");
+    const [cardImg, setCardImg] = useState(""); // sample card img
     const [queriedCards, setQueriedCards] = useState<CardInterface[]>([]);
     const [userCards, setUserCards] = useState<CardInterface[]>([]);
+    const [wishlistCards, setWishlistCards] = useState<CardInterface[]>([]);
 
+    // getcards when its run
     useEffect(() => {
         getCards();
     }, []);
@@ -47,7 +46,8 @@ export default function Home() {
 
             if (response.ok) {
                 let data = await response.json();
-                setUserCards(data.cards);
+                setUserCards(data.collection);
+                setWishlistCards(data.wishlist);
             }
         } catch (error) {}
     };
@@ -77,10 +77,33 @@ export default function Home() {
         }
     };
 
-    const addCardToDB = async (card: CardInterface) => {
+    const addCardToDB = async (card: CardInterface, listName: string) => {
         try {
             console.log(card);
             let response = await fetch("http://127.0.0.1:8000/add", {
+                method: "POST",
+                headers: {
+                    Accept: "application/json", // receiving items in json format
+                    "Content-Type": "application/json", // sending items in json format
+                },
+                body: JSON.stringify({
+                    cardValue: card,
+                    whichList: listName,
+                }),
+            });
+
+            if (response.ok) {
+                let data = response.json();
+                console.log(data);
+
+                getCards(); // display updated
+            }
+        } catch (error) {}
+    };
+
+    const removeCardFromDB = async (card: CardInterface) => {
+        try {
+            let response = await fetch("http://127.0.0.1:8000/remove", {
                 method: "POST",
                 headers: {
                     Accept: "application/json", // receiving items in json format
@@ -92,12 +115,18 @@ export default function Home() {
             });
 
             if (response.ok) {
-                let data = response.json();
-                console.log(data);
+                console.log("deleted");
+
+                getCards(); // display updated
             }
-        } catch (error) {}
+        } catch (error) {
+            if (typeof error === "string") {
+                console.log(error);
+            }
+        }
     };
 
+    // for test latios card!!
     const getCardImg = async () => {
         try {
             let response = await fetch("http://127.0.0.1:8000/");
@@ -112,35 +141,7 @@ export default function Home() {
 
     return (
         <main className="h-screen w-100">
-            <div className="flex items-center justify-between py-3 px-10">
-                <TooltipProvider delayDuration={300}>
-                    <Tooltip>
-                        <TooltipTrigger>
-                            <h1 className="font-bold text-xl mb-0">
-                                <span className="text-[#8B85CB]">poké</span>dash
-                            </h1>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                            <p>
-                                the dashboard for tracking your Pokemon
-                                collection
-                            </p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-
-                <div className="flex gap-5 items-center">
-                    <div className="flex items-center gap-3">
-                        <span className="rounded-full w-3 h-3 bg-green-400"></span>
-
-                        <div>Guest Mode (currently active)</div>
-                    </div>
-
-                    <Button>
-                        <User /> Login
-                    </Button>
-                </div>
-            </div>
+            <Nav />
 
             <Separator />
 
@@ -200,11 +201,24 @@ export default function Home() {
                                                         <Button
                                                             onClick={() =>
                                                                 addCardToDB(
-                                                                    card
+                                                                    card,
+                                                                    "collection"
                                                                 )
                                                             }
                                                         >
                                                             Add to Collection
+                                                        </Button>
+                                                        <Button
+                                                            onClick={() =>
+                                                                addCardToDB(
+                                                                    card,
+                                                                    "wishlist"
+                                                                )
+                                                            }
+                                                            variant="outline"
+                                                            className="mt-2"
+                                                        >
+                                                            Add to Wishlist
                                                         </Button>
                                                     </div>
                                                 ))
@@ -225,35 +239,62 @@ export default function Home() {
                     </div>
 
                     <ScrollArea className="h-[350px] border p-4 rounded-md">
-                        {userCards.length > 0 ? (
-                            userCards.map((card) => (
-                                <img
-                                    src={card.name} // FIX THIS!!!!! also delete the test cases from db
-                                    alt={card.id}
-                                    className="mb-2 h-30 w-20"
-                                />
-                            ))
-                        ) : (
-                            <div className="text-center">
-                                Add cards to see them appear here
-                            </div>
-                        )}
+                        <div className="grid grid-cols-3">
+                            {userCards.length > 0 ? (
+                                userCards.map((card) => (
+                                    <div className="max-w-25 group">
+                                        <img
+                                            src={card.name} // FIX THIS!!!!!
+                                            alt={card.id}
+                                            className="mb-2 w-40"
+                                        />
+
+                                        <Button
+                                            onClick={() => {
+                                                removeCardFromDB(card);
+                                            }}
+                                            className="absolute top-0 opacity-0 group-hover:opacity-100"
+                                        >
+                                            <Trash2></Trash2>
+                                        </Button>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center">
+                                    Add cards to see them appear here
+                                </div>
+                            )}
+                        </div>
                     </ScrollArea>
                 </section>
 
                 <Separator orientation="vertical" />
 
                 <div className="flex flex-col flex-auto">
-                    <div className="flex">
+                    <div className="flex flex-col">
                         <section className="flex-auto">
                             <h3>Wishlist</h3>
 
                             <ScrollArea className="h-[200px] border p-4 rounded-md">
-                                {cardImg ? (
-                                    <img
-                                        src={cardImg}
-                                        className="w-40 h-auto"
-                                    />
+                                {wishlistCards.length > 0 ? (
+                                    wishlistCards.map((card) => (
+                                        <div className="max-w-25 group">
+                                            <img
+                                                src={card.name} // FIX THIS!!
+                                                alt={card.id}
+                                                className="mb-2 w-40"
+                                            />
+
+                                            <Button
+                                                onClick={() => {
+                                                    removeCardFromDB(card); // FIX THIS!! removing from wrong schema
+                                                }}
+                                                className="absolute top-0 opacity-0 group-hover:opacity-100"
+                                            >
+                                                <Trash2></Trash2>
+                                            </Button>
+                                        </div>
+                                    ))
                                 ) : (
                                     <div className="text-center">
                                         Add cards to see them appear here
@@ -262,7 +303,7 @@ export default function Home() {
                             </ScrollArea>
                         </section>
 
-                        <Separator orientation="vertical" />
+                        <Separator />
 
                         <section className="flex-auto">
                             <h3>Recommended</h3>
@@ -282,12 +323,6 @@ export default function Home() {
                             </ScrollArea>
                         </section>
                     </div>
-
-                    <Separator />
-
-                    <section className="">
-                        <h3>Portfolio Value</h3>
-                    </section>
                 </div>
             </div>
         </main>
