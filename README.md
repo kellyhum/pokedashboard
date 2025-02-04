@@ -16,6 +16,7 @@ A way to track your card collection, add to a wishlist, and get recommendations
 ## Currently Implementing:
 - [ ] User authentication w/ hashing
 - [ ] Getting recommendations working
+- [ ] Offline sync via service workers -> converting to a PWA
 
 ## Prerequisites
 - Node.js
